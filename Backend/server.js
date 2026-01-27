@@ -13,6 +13,7 @@ import userRoutes from "./Routes/userRoutes.js";
 import adminUsersRouter from "./Routes/adminUsers.js";
 import userTargetRoutes from "./Routes/userTargetRoutes.js";
 import adminMealsRouter from "./Routes/adminMeals.js";
+import adminWorkoutRoutes from "./Routes/adminWorkoutRoutes.js";
 import mealsRoutes from "./Routes/fetchUserMeals.js";
 import userMealsRoutes from "./Routes/userMeals.js";
 import adminDashboardRoutes, { 
@@ -108,6 +109,7 @@ app.use("/api/user-meals", userMealsRoutes);
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin-meals/", adminMealsRouter);
 app.use("/api/admin/dashboard", adminDashboardRoutes);
+app.use("/api/admin/workouts", adminWorkoutRoutes);
 
 
 // Start server
