@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --deep-charcoal: #121212;
+  --sidebar-bg: #1A1A1A;
+  --neon-green: #39FF14;
+  --cyan-blue: #22D3EE;
+  --card-bg: #1E1E1E;
+  --border-color: rgba(255, 255, 255, 0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-charcoal text-slate-100 antialiased font-display;
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+.filled-icon {
+  font-variation-settings: 'FILL' 1;
+}
+
+.neon-glow {
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+
+/* Inter Variable Font */
+@font-face {
+  font-family: 'Inter';
+  src: url('./assets/Fonts/InterVariable.ttf') format('truetype');
+  font-weight: 100 900; /* Variable font covers all weights */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Material Symbols Outlined */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  src: url('./assets/Fonts/MaterialSymbolsOutlined.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Material Symbols helper classes */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.filled-icon {
+  font-variation-settings: 'FILL' 1;
+}
+
+
+/* Mobile Performance Optimizations */
+.performance-optimized {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.performance-optimized-card {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.float-animation-up {
+  animation: floatUp 3s ease-in-out infinite;
+}
+
+.float-animation-down {
+  animation: floatDown 4s ease-in-out infinite;
+}
+
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes floatDown {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+/* Reduce motion when scrolling fast */
+.reduced-motion * {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
+.reduced-motion .animate-pulse {
+  animation: none !important;
+}
+
+/* Optimize for mobile */
+@media (max-width: 640px) {
+  .performance-optimized-card {
+    transform: none !important;
+    transition: none !important;
+  }
+  
+  .hover\:scale-105:hover {
+    transform: none !important;
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .float-animation-up,
+  .float-animation-down,
+  .animate-pulse {
+    animation: none !important;
+  }
+  
+  .transition-all,
+  .transition-transform,
+  .transition-colors {
+    transition: none !important;
+  }
+}
