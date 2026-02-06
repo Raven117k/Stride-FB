@@ -38,15 +38,18 @@ function MealPlanner() {
         fats: 0,
     });
 
-    // Fetch data on component mount
-    useEffect(() => {
-        fetchData();
-    }, []);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
     const fetchData = async () => {
         try {
+            setError("");
             const token = localStorage.getItem("token");
             
+            if (!token) {
+                throw new Error("No authentication token found");
+            }
+
             // 1. Fetch available meals (from admin)
             const availableRes = await axios.get("/api/meals", {
                 headers: { Authorization: `Bearer ${token}` },
@@ -84,10 +87,26 @@ function MealPlanner() {
             
         } catch (err) {
             console.error("Error fetching data:", err);
+            
+            if (err.response?.status === 401) {
+                setError("Session expired. Please log in again.");
+            } else if (err.message.includes("token")) {
+                setError("No authentication token found. Please log in again.");
+            } else {
+                setError(err.response?.data?.message || err.message || "Failed to load meal data");
+            }
+            
             setGoals(DEFAULT_GOALS);
             setTempTargets(DEFAULT_GOALS);
+        } finally {
+            setLoading(false);
         }
     };
+
+    // Fetch data on component mount
+    useEffect(() => {
+        fetchData();
+    }, []);
 
     const calculateDailyTotals = (meals) => {
         const totals = { calories: 0, protein: 0, carbs: 0, fats: 0 };
@@ -229,6 +248,171 @@ function MealPlanner() {
     // Filter completed meals
     const completedMeals = userMeals.filter(meal => meal.isDone);
     const pendingMeals = userMeals.filter(meal => !meal.isDone);
+
+    // Inline Loader Component (Bone Structure from Progress page)
+    const InlineLoader = () => (
+        <div className="min-h-screen">
+            <div className="max-w-7xl mx-auto space-y-6 p-4 sm:p-6 md:p-8">
+                {/* Header with shimmer effect */}
+                <div className="flex flex-col lg:flex-row justify-between items-start gap-4 mb-8">
+                    <div>
+                        <div className="h-10 w-64 bg-white/5 rounded-lg mb-2 animate-pulse"></div>
+                        <div className="h-4 w-72 bg-white/5 rounded animate-pulse"></div>
+                    </div>
+                    <div className="flex gap-3">
+                        <div className="h-11 w-32 bg-white/5 rounded-xl animate-pulse"></div>
+                        <div className="h-11 w-32 bg-white/5 rounded-xl animate-pulse"></div>
+                    </div>
+                </div>
+
+                {/* Daily Progress Overview Loader */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-10">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="bg-white/5 border border-white/5 rounded-2xl p-5 animate-pulse">
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-2 rounded-lg bg-white/5 w-8 h-8"></div>
+                                    <div className="h-4 w-16 bg-white/5 rounded"></div>
+                                </div>
+                                <div className="h-4 w-12 bg-white/5 rounded"></div>
+                            </div>
+                            <div className="flex items-baseline gap-2 mb-3">
+                                <div className="h-8 w-16 bg-white/5 rounded"></div>
+                                <div className="h-4 w-8 bg-white/5 rounded"></div>
+                            </div>
+                            <div className="mt-4">
+                                <div className="flex justify-between text-xs mb-2">
+                                    <div className="h-3 w-16 bg-white/5 rounded"></div>
+                                    <div className="h-3 w-8 bg-white/5 rounded"></div>
+                                </div>
+                                <div className="w-full h-2 bg-white/5 rounded-full"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Summary Card Loader */}
+                <div className="bg-white/5 border border-white/5 rounded-2xl p-5 mb-8 animate-pulse">
+                    <div className="flex flex-col sm:flex-row items-center justify-between">
+                        <div className="text-center sm:text-left mb-4 sm:mb-0">
+                            <div className="h-6 w-40 bg-white/5 rounded-lg mb-1"></div>
+                            <div className="h-4 w-48 bg-white/5 rounded"></div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <div className="text-center">
+                                <div className="h-8 w-8 bg-white/5 rounded mb-1"></div>
+                                <div className="h-3 w-16 bg-white/5 rounded"></div>
+                            </div>
+                            <div className="h-8 w-px bg-white/10"></div>
+                            <div className="text-center">
+                                <div className="h-8 w-8 bg-white/5 rounded mb-1"></div>
+                                <div className="h-3 w-16 bg-white/5 rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Today's Meals Section Loader */}
+                <div className="mb-8">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+                        <div className="h-7 w-40 bg-white/5 rounded-lg"></div>
+                        <div className="flex items-center gap-2">
+                            <div className="h-6 w-20 bg-white/5 rounded-full"></div>
+                            <div className="h-6 w-20 bg-white/5 rounded-full"></div>
+                        </div>
+                    </div>
+                    
+                    {/* Meal Cards Grid Loader */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="group bg-white/5 backdrop-blur-sm rounded-xl border border-white/10 animate-pulse">
+                                <div className="h-40 bg-white/5 relative"></div>
+                                <div className="p-4">
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="h-5 w-32 bg-white/5 rounded mb-1"></div>
+                                            <div className="h-3 w-24 bg-white/5 rounded"></div>
+                                        </div>
+                                        <div className="p-1.5 bg-white/5 rounded-full w-6 h-6"></div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-4 gap-2 mb-4">
+                                        {[1, 2, 3, 4].map(j => (
+                                            <div key={j} className="text-center bg-white/5 rounded-lg p-2">
+                                                <div className="h-4 w-8 bg-white/5 rounded mx-auto mb-1"></div>
+                                                <div className="h-2 w-6 bg-white/5 rounded mx-auto"></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="w-full h-11 bg-white/5 rounded-xl"></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Add CSS for shimmer animation
+    const LoaderCSS = () => (
+        <style>{`
+            @keyframes shimmer {
+                0% { background-position: -200% center; }
+                100% { background-position: 200% center; }
+            }
+            
+            .animate-shimmer {
+                background-size: 200% 100%;
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.1) 0%,
+                    rgba(255, 255, 255, 0.2) 50%,
+                    rgba(255, 255, 255, 0.1) 100%
+                );
+            }
+        `}</style>
+    );
+
+    if (loading) {
+        return (
+            <>
+                <LoaderCSS />
+                <InlineLoader />
+            </>
+        );
+    }
+
+    if (error) return (
+        <div className="max-w-7xl mx-auto p-10">
+            <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-2xl text-red-500">
+                <h3 className="font-bold text-lg mb-2">Access Error</h3>
+                <p className="mb-4">{error}</p>
+                <div className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                        <button 
+                            onClick={fetchData} 
+                            className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition"
+                        >
+                            Retry Loading
+                        </button>
+                        <button 
+                            onClick={() => { 
+                                localStorage.removeItem("user");
+                                localStorage.removeItem("token"); 
+                                window.location.href = '/login'; 
+                            }} 
+                            className="border border-red-500 px-6 py-2 rounded-lg font-bold"
+                        >
+                            Logout & Re-login
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="min-h-screen">

@@ -1,180 +1,443 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Grid from "./components/Grid";
+import axios from "axios";
+import { RefreshCw } from "lucide-react"; // Import an icon for better visual
 
-function Progress() {
-  return (
-    <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-      {/* Title */}
-      <div className="pt-4 sm:pt-0 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
-        <div className="space-y-1">
-          <h2 className="text-white text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-black tracking-tight">
-            Unified Progress Analytics
-          </h2>
-          <p className="text-gray-400 text-sm sm:text-base lg:text-lg font-medium">
-            Holistic health performance trends and muscle volume tracking.
-          </p>
+const Progress = () => {
+  const [data, setData] = useState({
+    stats: {
+      total: 0,
+      completed: 0,
+      streak: 0,
+      calories: 0,
+      weeklyAvg: "0.0",
+      completionRate: "0%",
+      lastWorkout: null
+    },
+    weightData: [],
+    userWorkouts: [],
+    lastUpdated: null
+  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchProgressData = async () => {
+    try {
+      setError("");
+      setIsRefreshing(true);
+
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+      };
+
+      // Fetch all progress data in one API call
+      const response = await axios.get("http://localhost:5000/api/progress", config);
+
+      if (response.data.success) {
+        setData(response.data);
+
+        // Also fetch user profile for additional info
+        try {
+          const userRes = await axios.get("http://localhost:5000/api/user/me", config);
+          setUser(userRes.data.user || userRes.data);
+        } catch (userErr) {
+          console.log("User fetch optional, using localStorage data");
+          const rawUser = localStorage.getItem("user");
+          if (rawUser) setUser(JSON.parse(rawUser));
+        }
+      } else {
+        throw new Error(response.data.message || "Failed to load progress data");
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
+
+      if (err.response?.status === 401) {
+        setError("Session expired. Please log in again.");
+      } else if (err.message.includes("token")) {
+        setError("No authentication token found. Please log in again.");
+      } else {
+        setError(err.response?.data?.message || err.message || "Failed to load progress data");
+      }
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Initial fetch
+  useEffect(() => {
+    fetchProgressData();
+  }, []);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    let interval;
+
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        console.log("Auto-refreshing progress data...");
+        fetchProgressData();
+      }, 30000); // Every 30 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh]);
+
+  const formatLastWorkout = (dateString) => {
+    if (!dateString) return "Never";
+
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "Today";
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return date.toLocaleDateString();
+  };
+
+  // Format time for display
+  const formatUpdateTime = (dateString) => {
+    if (!dateString) return 'Just now';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes === 1) return '1 minute ago';
+    if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
+    if (diffMinutes < 120) return '1 hour ago';
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Inline Loader Component
+  const InlineLoader = () => (
+    <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 lg:p-8">
+      {/* Header with shimmer effect - Responsive */}
+      <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 xs:gap-4">
+        <div className="w-full xs:w-auto">
+          <div className="h-8 sm:h-10 w-48 sm:w-64 bg-white/5 rounded-lg mb-2 animate-pulse"></div>
+          <div className="h-3 sm:h-4 w-56 sm:w-72 bg-white/5 rounded animate-pulse"></div>
         </div>
-        <div className="flex flex-wrap gap-2 sm:gap-3">
-          <button className="flex items-center justify-center rounded-xl h-10 sm:h-11 px-3 sm:px-4 lg:px-6 bg-white/5 text-white text-xs sm:text-sm font-bold border border-white/10 hover:bg-white/10 transition-colors">
-            <span className="material-symbols-outlined mr-1 sm:mr-2 text-base sm:text-lg lg:text-xl">
-              download
-            </span>
-            Export
-          </button>
-          <button className="flex items-center justify-center rounded-xl h-10 sm:h-11 px-3 sm:px-4 lg:px-6 bg-primary text-dark-bg text-xs sm:text-sm font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] transition-all">
-            <span className="material-symbols-outlined mr-1 sm:mr-2 text-base sm:text-lg lg:text-xl">add</span>
-            Log Data
-          </button>
+        <div className="flex flex-col xs:items-end gap-2 w-full xs:w-auto">
+          <div className="h-8 sm:h-9 w-28 sm:w-32 bg-white/5 rounded-lg animate-pulse"></div>
+          <div className="h-3 w-32 sm:w-40 bg-white/5 rounded animate-pulse"></div>
         </div>
       </div>
 
-      {/* Time Filter */}
-      <div className="flex overflow-x-auto custom-scrollbar pb-2">
-        <div className="flex h-9 sm:h-10 lg:h-11 items-center rounded-xl bg-charcoal p-1 border border-white/5 w-full max-w-md gap-1">
-          {["Week", "Month", "Year", "All Time"].map((label) => (
-            <label
-              key={label}
-              className="flex cursor-pointer h-full grow items-center justify-center rounded-lg px-2 has-[:checked]:bg-secondary has-[:checked]:text-white text-gray-400 text-xs sm:text-sm font-bold transition-all"
-            >
-              <span>{label}</span>
-              <input
-                type="radio"
-                name="time-filter"
-                value={label}
-                className="hidden"
-                defaultChecked={label === "Year"}
-              />
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* Weight Trends */}
-      <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
-          <div>
-            <h3 className="text-white text-lg sm:text-xl font-bold mb-1">Weight Trends</h3>
-            <p className="text-gray-500 text-xs sm:text-sm font-medium">
-              Body mass fluctuation over the last 12 months
-            </p>
-          </div>
-          <div className="text-left sm:text-right">
-            <p className="text-white text-2xl sm:text-3xl lg:text-4xl font-black">
-              78.5 <span className="text-sm sm:text-base lg:text-lg font-normal text-gray-500">kg</span>
-            </p>
-            <div className="text-primary text-xs sm:text-sm font-bold flex items-center sm:justify-end gap-1 mt-1">
-              <span className="material-symbols-outlined text-sm sm:text-base lg:text-lg">
-                trending_down
-              </span>{" "}
-              -2.4% vs last year
-            </div>
-          </div>
-        </div>
-
-        {/* Chart */}
-        <div className="h-48 sm:h-60 lg:h-72 xl:h-[350px] w-full">
-          <svg
-            className="w-full h-full"
-            fill="none"
-            preserveAspectRatio="none"
-            viewBox="0 0 1000 300"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <line className="stroke-grid-line" strokeDasharray="4" strokeWidth="1" x1="0" x2="1000" y1="50" y2="50"></line>
-            <line className="stroke-grid-line" strokeDasharray="4" strokeWidth="1" x1="0" x2="1000" y1="150" y2="150"></line>
-            <line className="stroke-grid-line" strokeDasharray="4" strokeWidth="1" x1="0" x2="1000" y1="250" y2="250"></line>
-            <path
-              d="M0 200 C 100 180, 200 220, 300 150 C 400 80, 500 100, 600 120 C 700 140, 800 60, 900 80 C 1000 100, 1000 300, 1000 300 L 0 300 Z"
-              fill="url(#chartGradient)"
-            ></path>
-            <path
-              className="glow-green"
-              d="M0 200 C 100 180, 200 220, 300 150 C 400 80, 500 100, 600 120 C 700 140, 800 60, 900 80 C 1000 100"
-              stroke="#2bee6c"
-              strokeLinecap="round"
-              strokeWidth="3"
-            ></path>
-            <defs>
-              <linearGradient gradientUnits="userSpaceOnUse" id="chartGradient" x1="0" x2="0" y1="0" y2="300">
-                <stop stopColor="#2bee6c" stopOpacity="0.15"></stop>
-                <stop offset="1" stopColor="#2bee6c" stopOpacity="0"></stop>
-              </linearGradient>
-            </defs>
-          </svg>
-
-          <div className="flex justify-between mt-3 sm:mt-4 px-1">
-            {["Jan", "Mar", "May", "Jul", "Sep", "Nov"].map((m) => (
-              <p key={m} className="text-gray-500 text-[8px] sm:text-[9px] lg:text-[10px] font-black tracking-widest uppercase">
-                {m}
-              </p>
+      {/* Main Grid - Responsive */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        {/* Performance Streak Card Loader */}
+        <div className="bg-[#111] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl">
+          <div className="h-4 w-32 sm:w-40 bg-white/5 rounded-lg mb-2 animate-pulse"></div>
+          <div className="h-16 sm:h-20 w-24 sm:w-32 bg-white/5 rounded-xl sm:rounded-2xl mb-6 sm:mb-8 animate-pulse"></div>
+          <div className="space-y-3 sm:space-y-4">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="flex justify-between items-center py-2 sm:py-3 border-b border-white/5">
+                <div className="h-3 sm:h-4 w-28 sm:w-36 bg-white/5 rounded animate-pulse"></div>
+                <div className="h-3 sm:h-4 w-16 sm:w-20 bg-white/5 rounded animate-pulse"></div>
+              </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Workout & Consistency */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-        {/* Workout Frequency */}
-        <div className="lg:col-span-2 bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl flex flex-col">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-4">
+        {/* Body Weight Trend Card Loader */}
+        <div className="md:col-span-2 bg-[#111] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start mb-6 sm:mb-8 md:mb-10 gap-4 sm:gap-0">
             <div>
-              <h3 className="text-white text-lg sm:text-xl font-bold">Workout Frequency</h3>
-              <p className="text-gray-500 text-xs sm:text-sm font-medium">Daily activity distribution</p>
+              <div className="h-5 sm:h-6 w-36 sm:w-48 bg-white/5 rounded-lg mb-1 animate-pulse"></div>
+              <div className="h-3 sm:h-4 w-40 sm:w-56 bg-white/5 rounded animate-pulse"></div>
+              <div className="h-3 w-28 sm:w-32 bg-white/5 rounded mt-1 animate-pulse"></div>
             </div>
-            <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-500 font-bold uppercase tracking-wider">
-              <span>Less</span>
-              <div className="flex gap-1">
-                <div className="size-2.5 sm:size-3 lg:size-3.5 rounded-sm bg-white/5"></div>
-                <div className="size-2.5 sm:size-3 lg:size-3.5 rounded-sm bg-secondary/20"></div>
-                <div className="size-2.5 sm:size-3 lg:size-3.5 rounded-sm bg-secondary/50"></div>
-                <div className="size-2.5 sm:size-3 lg:size-3.5 rounded-sm bg-secondary"></div>
-              </div>
-              <span>More</span>
+            <div className="text-right">
+              <div className="h-10 sm:h-12 w-28 sm:w-32 bg-white/5 rounded-lg mb-1 animate-pulse"></div>
+              <div className="h-3 sm:h-4 w-24 sm:w-28 bg-white/5 rounded animate-pulse"></div>
             </div>
           </div>
-          <div className="overflow-x-auto custom-scrollbar pb-2">
-            <div className="flex gap-1.5 sm:gap-2 min-w-[500px] sm:min-w-[600px] lg:min-w-[700px]">
-              <div className="flex flex-col gap-1 sm:gap-1.5 pt-5 sm:pt-6 pr-1.5 sm:pr-2">
-                {["MON", "WED", "FRI"].map((d) => (
-                  <div key={d} className="text-[8px] sm:text-[9px] lg:text-[10px] text-gray-600 h-3 sm:h-3.5 flex items-center font-bold">
-                    {d}
-                  </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-1 sm:gap-1.5 w-full">
-                <Grid />
-              </div>
+
+          <div className="relative h-32 sm:h-36 md:h-44 w-full bg-white/5 rounded-lg sm:rounded-xl animate-pulse">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-gray-500 text-xs sm:text-sm">Loading chart...</div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Consistency Score */}
-        <div className="bg-secondary rounded-2xl p-4 sm:p-6 lg:p-8 text-white relative overflow-hidden group">
-          <div className="absolute -right-8 sm:-right-10 -top-8 sm:-top-10 size-32 sm:size-40 bg-white/10 rounded-full blur-3xl group-hover:scale-110 transition-transform"></div>
-          <h3 className="text-xl sm:text-2xl font-black mb-4 sm:mb-6 lg:mb-8 relative z-10">Consistency Score</h3>
-          <div className="space-y-3 sm:space-y-4 lg:space-y-6 relative z-10">
-            {[
-              ["Weekly Average", "4.2 Days"],
-              ["Active Streak", "12 Days"],
-              ["Total Workouts", "148"],
-              ["Calories Burned", "42.5k"],
-            ].map(([label, value], i) => (
-              <div
-                key={i}
-                className={`flex justify-between items-center ${i < 3 ? "border-b border-white/20 pb-2 sm:pb-3 lg:pb-4" : ""}`}
-              >
-                <p className="font-bold text-white/80 text-sm sm:text-base">{label}</p>
-                <p className="text-xl sm:text-2xl font-black">{value}</p>
-              </div>
-            ))}
+      {/* Activity Frequency Card Loader */}
+      <div className="bg-[#111] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8">
+        <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center mb-4 sm:mb-6 gap-3 xs:gap-0">
+          <div className="h-6 sm:h-7 w-36 sm:w-48 bg-white/5 rounded-lg animate-pulse"></div>
+          <div className="h-3 sm:h-4 w-32 sm:w-40 bg-white/5 rounded animate-pulse"></div>
+        </div>
+        <div className="overflow-x-auto -mx-2 sm:mx-0 pb-2">
+          <div className="h-48 sm:h-56 md:h-64 bg-white/5 rounded-lg sm:rounded-xl animate-pulse flex items-center justify-center mx-2 sm:mx-0">
+            <div className="text-gray-500 text-xs sm:text-sm">Loading activity grid...</div>
           </div>
-          <button className="w-full mt-4 sm:mt-6 lg:mt-10 bg-dark-bg text-white py-2.5 sm:py-3 lg:py-4 rounded-xl font-bold hover:scale-[1.02] active:scale-[0.98] transition-all border border-white/10 relative z-10 text-sm sm:text-base">
-            View Detailed Activity
-          </button>
         </div>
       </div>
     </div>
   );
-}
+
+  // Add CSS for shimmer animation
+  const LoaderCSS = () => (
+    <style>{`
+      @keyframes shimmer {
+        0% { background-position: -200% center; }
+        100% { background-position: 200% center; }
+      }
+      
+      .animate-shimmer {
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite linear;
+        background-image: linear-gradient(
+          90deg,
+          rgba(255, 255, 255, 0.1) 0%,
+          rgba(255, 255, 255, 0.2) 50%,
+          rgba(255, 255, 255, 0.1) 100%
+        );
+      }
+      
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      
+      .animate-spin {
+        animation: spin 1s linear infinite;
+      }
+    `}</style>
+  );
+
+  if (loading) {
+    return (
+      <>
+        <LoaderCSS />
+        <InlineLoader />
+      </>
+    );
+  }
+
+  if (error) return (
+    <div className="max-w-[1400px] mx-auto p-4 sm:p-6 md:p-10">
+      <div className="bg-red-500/10 border border-red-500/50 p-4 sm:p-6 rounded-xl sm:rounded-2xl text-red-500">
+        <h3 className="font-bold text-base sm:text-lg mb-2">Access Error</h3>
+        <p className="mb-4 text-sm sm:text-base">{error}</p>
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <button
+              onClick={fetchProgressData}
+              className="bg-red-500 text-white px-4 sm:px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition text-sm sm:text-base"
+            >
+              Retry Loading
+            </button>
+            <button
+              onClick={() => {
+                localStorage.removeItem("user");
+                localStorage.removeItem("token");
+                window.location.href = '/login';
+              }}
+              className="border border-red-500 px-4 sm:px-6 py-2 rounded-lg font-bold text-sm sm:text-base"
+            >
+              Logout & Re-login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const { stats, weightData, userWorkouts, lastUpdated } = data;
+
+  // Responsive SVG Chart Logic
+  const chartHeight = 200;
+  const chartWidth = Math.min(800, window.innerWidth * 0.9);
+  const weightsArr = weightData.map(d => d.weight);
+  const maxW = Math.max(...weightsArr, 0) + 5;
+  const minW = Math.max(0, Math.min(...weightsArr, 0) - 5);
+  const getX = (i) => (i * (chartWidth / (weightData.length - 1 || 1)));
+  const getY = (v) => chartHeight - ((v - minW) / (maxW - minW || 1)) * chartHeight;
+  const linePath = weightData.map((d, i) => `${i === 0 ? "M" : "L"} ${getX(i)} ${getY(d.weight)}`).join(" ");
+
+  return (
+    <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-6 p-3 sm:p-4 md:p-6 lg:p-8 animate-in fade-in duration-500">
+      {/* Header - Responsive */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
+        <header className="flex-1">
+          <h2 className="text-white font-bold text-xl sm:text-2xl md:text-3xl lg:text-4xl mb-1 lg:mb-2">Unified Progress</h2>
+          <p className="text-gray-400 text-sm sm:text-base lg:text-lg">Deep dive into your training consistency and body metrics.</p>
+        </header>
+
+        {/* Refresh Section - Improved Design */}
+        <div className="flex flex-col items-end gap-2 w-full lg:w-auto">
+          {/* Refresh Button - Modern Design */}
+          <button
+            onClick={fetchProgressData}
+            disabled={isRefreshing}
+            className="group relative overflow-hidden bg-gradient-to-r from-green-500/20 to-emerald-500/20 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-500/30 hover:border-green-500/50 text-green-400 hover:text-green-300 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-medium transition-all duration-300 flex items-center justify-center gap-2 w-full sm:w-auto lg:w-full shadow-lg hover:shadow-green-500/10 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="relative z-10 flex items-center gap-2">
+              <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              <span className="text-sm sm:text-base font-semibold">
+                {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
+              </span>
+            </span>
+            <span className="absolute inset-0 bg-gradient-to-r from-green-500/0 via-green-500/10 to-green-500/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></span>
+          </button>
+
+          {/* Updated Time - Now directly below the button */}
+          <div className="text-xs text-gray-500 whitespace-nowrap">
+            Updated: {formatUpdateTime(lastUpdated)}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid - Responsive */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        {/* Performance Streak Card */}
+        <div className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 shadow-2xl">
+          <h3 className="text-green-500 font-bold text-[10px] xs:text-xs uppercase tracking-[0.2em] mb-2">Performance Streak</h3>
+          <div className="text-5xl sm:text-6xl md:text-7xl font-black text-white mb-6 sm:mb-8">
+            {stats.streak}<span className="text-lg sm:text-xl text-gray-600 ml-2">DAYS</span>
+          </div>
+          <div className="space-y-3 sm:space-y-4">
+            <StatRow label="Weekly Average" value={`${stats.weeklyAvg} workouts`} />
+            <StatRow label="Completed Workouts" value={stats.completed} />
+            <StatRow label="Last Workout" value={formatLastWorkout(stats.lastWorkout)} />
+          </div>
+        </div>
+
+        {/* Body Weight Trend Card */}
+        <div className="md:col-span-2 bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row justify-between items-start mb-6 sm:mb-8 md:mb-10 gap-4 sm:gap-0">
+            <div>
+              <h3 className="text-white text-lg sm:text-xl font-bold">Body Weight Trend</h3>
+              <p className="text-gray-500 text-xs sm:text-sm">Visualizing progress over time</p>
+              <div className="text-xs text-gray-600 mt-1">
+                {weightData.length} data points
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-3xl sm:text-4xl font-black text-white">
+                {weightData[weightData.length - 1]?.weight || user?.weight || 0}
+                <span className="text-base sm:text-lg text-gray-500 font-normal"> kg</span>
+              </div>
+              <div className="text-xs sm:text-sm text-gray-500 mt-1">
+                Current weight
+              </div>
+            </div>
+          </div>
+
+          {/* Responsive Chart Container */}
+          <div className="relative h-32 sm:h-36 md:h-44 w-full">
+            <svg
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              className="w-full h-full overflow-visible"
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <defs>
+                <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#2bee6c" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="#2bee6c" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <path d={`${linePath} V ${chartHeight} H 0 Z`} fill="url(#chartFill)" />
+              <path
+                d={linePath}
+                fill="none"
+                stroke="#2bee6c"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {weightData.map((d, i) => (
+                <circle
+                  key={i}
+                  cx={getX(i)}
+                  cy={getY(d.weight)}
+                  r="3.5"
+                  fill={d.source === 'workout' ? "#2bee6c" : d.source === 'profile' ? "#3b82f6" : "#6b7280"}
+                  stroke="#111"
+                  strokeWidth="1.5"
+                />
+              ))}
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Activity Frequency Card - Responsive */}
+      <div className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-white/5 rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8">
+        <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center mb-4 sm:mb-6 gap-3 xs:gap-0">
+          <h3 className="text-white text-lg sm:text-xl font-bold">Activity Frequency</h3>
+          <div className="flex items-center gap-3">
+            <div className="text-xs sm:text-sm text-gray-500">
+              Showing {userWorkouts.length} completed workouts
+            </div>
+
+            {/* Mobile Auto-refresh Toggle */}
+            <div className="flex lg:hidden items-center gap-1">
+              <input
+                type="checkbox"
+                id="autoRefreshMobile"
+                checked={autoRefresh}
+                onChange={() => setAutoRefresh(!autoRefresh)}
+                className="sr-only peer"
+              />
+              <label
+                htmlFor="autoRefreshMobile"
+                className={`relative w-8 h-5 rounded-full cursor-pointer transition-all duration-300 ${autoRefresh ? 'bg-green-500/30' : 'bg-gray-700/50'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all duration-300 ${autoRefresh ? 'translate-x-3' : ''}`}></span>
+              </label>
+              <span className="text-xs text-gray-400">Auto</span>
+            </div>
+          </div>
+        </div>
+        <div className="overflow-x-auto -mx-2 sm:mx-0 pb-2">
+          {userWorkouts.length > 0 ? (
+            <div className="min-w-[300px] sm:min-w-full mx-2 sm:mx-0">
+              <Grid userPlan={userWorkouts} />
+            </div>
+          ) : (
+            <div className="text-center py-8 sm:py-10 text-gray-500 mx-2 sm:mx-0">
+              <p className="text-base sm:text-lg">No completed workouts yet</p>
+              <p className="text-xs sm:text-sm mt-2">Complete your first workout to start tracking progress!</p>
+              <button
+                onClick={() => window.location.href = '/training'}
+                className="mt-4 bg-green-500 text-white px-4 sm:px-6 py-2 rounded-lg font-bold hover:bg-green-600 transition text-sm sm:text-base"
+              >
+                Go to Training
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const StatRow = ({ label, value }) => (
+  <div className="flex justify-between items-center py-2 sm:py-3 border-b border-white/5">
+    <span className="text-gray-500 font-medium text-sm sm:text-base">{label}</span>
+    <span className="text-white font-bold text-sm sm:text-base">{value}</span>
+  </div>
+);
 
 export default Progress;

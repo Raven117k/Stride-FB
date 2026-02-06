@@ -10,7 +10,8 @@ function Settings() {
     const [isSaving, setIsSaving] = useState(false);
     const [password, setPassword] = useState("");
     const [avatarUploading, setAvatarUploading] = useState(false);
-
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
 
     // Snackbar state
     const [snackbar, setSnackbar] = useState({
@@ -45,7 +46,13 @@ function Settings() {
     useEffect(() => {
         const fetchUser = async () => {
             try {
+                setError("");
                 const token = localStorage.getItem("token");
+                
+                if (!token) {
+                    throw new Error("No authentication token found");
+                }
+
                 const res = await fetch("http://localhost:5000/api/user/me", {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -58,16 +65,26 @@ function Settings() {
                     // Set initial password as empty or masked
                     setPassword("********");
                 } else {
-                    showSnackbar("Failed to load user data", "error");
+                    throw new Error(data.message || "Failed to load user data");
                 }
             } catch (err) {
                 console.error("Failed to fetch user", err);
-                showSnackbar("Network error. Please try again.", "error");
+                
+                if (err.message.includes("token")) {
+                    setError("No authentication token found. Please log in again.");
+                } else if (err.response?.status === 401) {
+                    setError("Session expired. Please log in again.");
+                } else {
+                    setError(err.message || "Failed to load user data");
+                }
+            } finally {
+                setLoading(false);
             }
         };
 
         fetchUser();
     }, []);
+
     const handleAvatarChange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -190,9 +207,211 @@ function Settings() {
         navigate("/login");
     };
 
-    if (!user) {
-        return <div className="text-white text-center mt-20">Loading...</div>;
+    // Inline Loader Component
+    const InlineLoader = () => (
+        <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-6 lg:space-y-8 animate-in fade-in duration-500">
+            {/* Header */}
+            <div className="pt-4 sm:pt-0">
+                <div className="h-10 w-64 bg-white/5 rounded-lg mb-2 animate-pulse"></div>
+                <div className="h-4 w-72 bg-white/5 rounded animate-pulse"></div>
+            </div>
+
+            {/* Profile Header Loader */}
+            <div className="bg-gradient-to-br from-white/5 to-white/5 border border-white/5 p-[1px] rounded-2xl">
+                <div className="bg-card rounded-2xl p-4 sm:p-6 lg:p-8">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex flex-1 items-center gap-4 sm:gap-6">
+                            {/* Avatar Container */}
+                            <div className="relative flex-shrink-0">
+                                <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full border-4 border-white/10 p-0.5 bg-white/5 animate-pulse"></div>
+                                <div className="absolute bottom-0 right-0 size-6 sm:size-7 lg:size-8 bg-white/5 rounded-full border-4 border-card animate-pulse"></div>
+                            </div>
+
+                            {/* User Info */}
+                            <div className="flex-1 min-w-0 space-y-2">
+                                <div className="h-7 w-48 bg-white/5 rounded animate-pulse"></div>
+                                <div className="h-4 w-32 bg-white/5 rounded animate-pulse"></div>
+                            </div>
+                        </div>
+
+                        {/* Save Button */}
+                        <div className="flex-shrink-0">
+                            <div className="h-11 w-32 bg-white/5 rounded-xl animate-pulse"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Main Content Grid Loader */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-8">
+                <div className="lg:col-span-8 space-y-4 sm:space-y-6">
+                    {/* Personal Details Card Loader */}
+                    <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 lg:mb-8">
+                            <div className="w-6 h-6 bg-white/5 rounded animate-pulse"></div>
+                            <div className="h-7 w-48 bg-white/5 rounded-lg animate-pulse"></div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                            {[1, 2, 3, 4].map(i => (
+                                <div key={i} className="space-y-2">
+                                    <div className="h-4 w-32 bg-white/5 rounded animate-pulse"></div>
+                                    <div className="h-12 w-full bg-white/5 rounded-xl animate-pulse"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Physical Metrics Card Loader */}
+                    <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 lg:mb-8 gap-3 sm:gap-0">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                                <div className="w-6 h-6 bg-white/5 rounded animate-pulse"></div>
+                                <div className="h-7 w-48 bg-white/5 rounded-lg animate-pulse"></div>
+                            </div>
+                            <div className="flex gap-1 p-1 bg-white/5 rounded-lg border border-white/5">
+                                <div className="px-2 sm:px-3 py-1.5 rounded-md w-16 bg-white/5 animate-pulse"></div>
+                                <div className="px-2 sm:px-3 py-1.5 rounded-md w-16 bg-white/5 animate-pulse"></div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="space-y-2">
+                                    <div className="h-4 w-24 bg-white/5 rounded animate-pulse"></div>
+                                    <div className="h-12 w-full bg-white/5 rounded-xl animate-pulse"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-4 sm:space-y-6 lg:space-y-8">
+                    {/* Notifications Card Loader */}
+                    <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                            <div className="w-6 h-6 bg-white/5 rounded animate-pulse"></div>
+                            <div className="h-6 w-40 bg-white/5 rounded-lg animate-pulse"></div>
+                        </div>
+                        <div className="space-y-4 sm:space-y-5">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className="flex items-center justify-between py-3 border-b border-white/5">
+                                    <div className="space-y-2">
+                                        <div className="h-4 w-32 bg-white/5 rounded animate-pulse"></div>
+                                        <div className="h-3 w-24 bg-white/5 rounded animate-pulse"></div>
+                                    </div>
+                                    <div className="w-11 h-6 bg-white/5 rounded-full animate-pulse"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Preferences Card Loader */}
+                    <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl">
+                        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                            <div className="w-6 h-6 bg-white/5 rounded animate-pulse"></div>
+                            <div className="h-6 w-40 bg-white/5 rounded-lg animate-pulse"></div>
+                        </div>
+                        <div className="space-y-3 sm:space-y-4">
+                            <div className="space-y-2">
+                                <div className="h-4 w-32 bg-white/5 rounded animate-pulse"></div>
+                                <div className="h-12 w-full bg-white/5 rounded-xl animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Logout & Delete Sections Loader */}
+            <div className="mt-4 sm:mt-6 lg:mt-8 flex flex-col gap-4">
+                {/* Logout Button Loader */}
+                <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl flex items-center justify-between gap-4">
+                    <div className="flex flex-1 items-center gap-3 sm:gap-4">
+                        <div className="w-8 h-8 bg-white/5 rounded-full animate-pulse"></div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                            <div className="h-5 w-32 bg-white/5 rounded animate-pulse"></div>
+                            <div className="h-3 w-48 bg-white/5 rounded animate-pulse hidden sm:block"></div>
+                        </div>
+                    </div>
+                    <div className="h-11 w-24 bg-white/5 rounded-xl animate-pulse"></div>
+                </div>
+
+                {/* Delete Button Loader */}
+                <div className="bg-card border border-white/5 p-4 sm:p-6 lg:p-8 rounded-2xl flex items-center justify-between gap-4">
+                    <div className="flex flex-1 items-center gap-3 sm:gap-4">
+                        <div className="w-8 h-8 bg-white/5 rounded-full animate-pulse"></div>
+                        <div className="flex-1 min-w-0 space-y-2">
+                            <div className="h-5 w-40 bg-white/5 rounded animate-pulse"></div>
+                            <div className="h-3 w-56 bg-white/5 rounded animate-pulse hidden sm:block"></div>
+                        </div>
+                    </div>
+                    <div className="h-11 w-28 bg-white/5 rounded-xl animate-pulse"></div>
+                </div>
+            </div>
+
+            {/* Footer Loader */}
+            <footer className="mt-6 sm:mt-8 lg:mt-12 pt-4 sm:pt-6 lg:pt-8 border-t border-white/5">
+                <div className="h-3 w-48 bg-white/5 rounded mx-auto animate-pulse"></div>
+            </footer>
+        </div>
+    );
+
+    // Add CSS for shimmer animation
+    const LoaderCSS = () => (
+        <style>{`
+            @keyframes shimmer {
+                0% { background-position: -200% center; }
+                100% { background-position: 200% center; }
+            }
+            
+            .animate-shimmer {
+                background-size: 200% 100%;
+                animation: shimmer 2s infinite linear;
+                background-image: linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0.1) 0%,
+                    rgba(255, 255, 255, 0.2) 50%,
+                    rgba(255, 255, 255, 0.1) 100%
+                );
+            }
+        `}</style>
+    );
+
+    if (loading) {
+        return (
+            <>
+                <LoaderCSS />
+                <InlineLoader />
+            </>
+        );
     }
+
+    if (error) return (
+        <div className="max-w-[1200px] mx-auto p-10">
+            <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-2xl text-red-500">
+                <h3 className="font-bold text-lg mb-2">Access Error</h3>
+                <p className="mb-4">{error}</p>
+                <div className="flex flex-col gap-4">
+                    <div className="flex gap-4">
+                        <button 
+                            onClick={() => window.location.reload()} 
+                            className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition"
+                        >
+                            Retry Loading
+                        </button>
+                        <button 
+                            onClick={() => { 
+                                localStorage.removeItem("user");
+                                localStorage.removeItem("token"); 
+                                window.location.href = '/login'; 
+                            }} 
+                            className="border border-red-500 px-6 py-2 rounded-lg font-bold"
+                        >
+                            Logout & Re-login
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
         <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
