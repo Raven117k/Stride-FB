@@ -10,6 +10,7 @@ import { Server } from "socket.io";
 // Routes
 import authRoutes from "./Routes/authRoutes.js";
 import userRoutes from "./Routes/userRoutes.js";
+import userWorkoutRoutes from "./Routes/userWorkoutRoutes.js";
 import adminUsersRouter from "./Routes/adminUsers.js";
 import userTargetRoutes from "./Routes/userTargetRoutes.js";
 import adminMealsRouter from "./Routes/adminMeals.js";
@@ -104,6 +105,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/targets", userTargetRoutes);
 app.use("/api/meals", mealsRoutes);
 app.use("/api/user-meals", userMealsRoutes);
+app.use("/api/user-workouts", userWorkoutRoutes);
 
 // Admin routes
 app.use("/api/admin/users", adminUsersRouter);
