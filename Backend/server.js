@@ -3,9 +3,11 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
+import jwt from "jsonwebtoken";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import Notification from "./Models/notificationSchema.js";
 
 // Routes
 import authRoutes from "./Routes/authRoutes.js";
@@ -18,6 +20,7 @@ import adminWorkoutRoutes from "./Routes/adminWorkoutRoutes.js";
 import progressRoutes from "./Routes/progressRoutes.js";
 import mealsRoutes from "./Routes/fetchUserMeals.js";
 import userMealsRoutes from "./Routes/userMeals.js";
+import notificationRoutes, { setNotificationIO } from "./Routes/notificationRoutes.js";
 import adminDashboardRoutes, { 
   initializeAdminMetrics, 
   getMetricsBroadcaster,
@@ -59,6 +62,52 @@ mongoose
 // Initialize admin dashboard metrics
 initializeAdminMetrics(io);
 
+// Pass io instance to notification routes
+setNotificationIO(io);
+
+// Socket.IO middleware for authentication
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token || socket.handshake.query.token;
+  if (!token) {
+    return next(new Error("Authentication failed - no token"));
+  }
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    next();
+  } catch (err) {
+    return next(new Error("Authentication failed - invalid token"));
+  }
+});
+
+// Socket.IO connection handling
+io.on("connection", (socket) => {
+  console.log(`User ${socket.userId} connected via socket.io`);
+  
+  // Join user-specific room for targeted notifications
+  socket.join(socket.userId.toString());
+  
+  // Listen for notification read event
+  socket.on("mark_notification_read", async ({ notificationId }) => {
+    try {
+      const updated = await Notification.findByIdAndUpdate(
+        notificationId,
+        { isRead: true },
+        { new: true }
+      );
+      // Broadcast update to user
+      socket.emit("notification_read", updated);
+    } catch (err) {
+      console.error("Error marking notification as read", err);
+    }
+  });
+  
+  socket.on("disconnect", () => {
+    console.log(`User ${socket.userId} disconnected`);
+  });
+});
+
 // Start metrics broadcasting
 const metricsInterval = getMetricsBroadcaster(io);
 
@@ -79,6 +128,12 @@ app.use((req, res, next) => {
   next();
 });
 // ============= END GLOBAL REQUEST TRACKING =============
+
+// Attach Socket.IO instance to requests so route handlers can emit
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 // Serve static files from uploads directory
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -108,6 +163,7 @@ app.use("/api/meals", mealsRoutes);
 app.use("/api/user-meals", userMealsRoutes);
 app.use("/api/user-workouts", userWorkoutRoutes);
 app.use("/api/progress", progressRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Admin routes
 app.use("/api/admin/users", adminUsersRouter);

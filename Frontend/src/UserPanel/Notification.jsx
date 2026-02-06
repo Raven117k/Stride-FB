@@ -1,8 +1,50 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { 
+  Trophy, 
+  Droplets, 
+  MessageSquare, 
+  TrendingUp, 
+  CheckCheck, 
+  Trash2, 
+  BellOff,
+  Clock
+} from "lucide-react";
+import useNotifications from "../hooks/useNotifications";
 
 function Notification() {
+  const {
+    notifications,
+    loading,
+    unreadCount,
+    connected,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification
+  } = useNotifications();
+
+  const formatTime = (date) => {
+    const now = new Date();
+    const then = new Date(date);
+    const diff = Math.floor((now - then) / 1000 / 60); // minutes
+    if (diff < 1) return "Just now";
+    if (diff < 60) return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return then.toLocaleDateString();
+  };
+
+  const getIcon = (type) => {
+    switch (type) {
+      case 'achievement': return <Trophy className="text-primary" />;
+      case 'reminder': return <Droplets className="text-blue-400" />;
+      case 'goal': return <TrendingUp className="text-success" />;
+      default: return <MessageSquare className="text-slate-400" />;
+    }
+  };
+
+  if (loading) return <div className="p-10 text-white animate-pulse">Loading alerts...</div>;
+
   return (
-    <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-6">
+    <div className="max-w-[1200px] mx-auto space-y-4 sm:space-y-6 animate-in fade-in duration-500">
       {/* Title & Actions */}
       <div className="pt-4 sm:pt-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -10,134 +52,109 @@ function Notification() {
             Activity Alerts
           </h2>
           <p className="text-sm sm:text-base text-slate-500 mt-1">
-            Stay updated on your progress, goals, and community interactions.
+            Stay updated on your progress, goals, and achievements.
           </p>
         </div>
 
-        <button className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-surface-dark hover:bg-border-dark border border-border-dark rounded-xl text-slate-200 text-xs sm:text-sm font-bold transition-all">
-          <span className="material-symbols-outlined text-base sm:text-lg text-slate-400">
-            done_all
-          </span>
-          Mark all as read
-        </button>
+        {unreadCount > 0 && (
+          <button 
+            onClick={markAllAsRead}
+            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-200 text-xs sm:text-sm font-bold transition-all"
+          >
+            <CheckCheck className="size-4 text-primary" />
+            Mark all as read
+          </button>
+        )}
       </div>
 
       {/* Notifications Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
         {/* Main Notifications */}
         <div className="lg:col-span-8 space-y-3 sm:space-y-4">
-          {/* Badge Notification */}
-          <div className="bg-card border border-white/5 rounded-2xl p-4 sm:p-6 hover:border-primary/50 transition-all duration-300 relative">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="flex-shrink-0 size-10 sm:size-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-xl sm:text-2xl">
-                  workspace_premium
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1 sm:gap-0">
-                  <h3 className="text-white font-bold text-sm sm:text-base">New Badge Unlocked!</h3>
-                  <span className="text-xs font-medium text-slate-500 bg-slate-800/50 px-2 py-1 rounded-md">
-                    Just now
-                  </span>
-                </div>
-                <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                  You've earned the <span className="text-primary font-semibold">"Early Bird"</span> badge for completing 5 workouts before 7 AM this week.
-                </p>
-                <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:gap-3">
-                  <button className="px-3 sm:px-4 py-1.5 sm:py-2 bg-primary text-charcoal text-xs font-black rounded-lg uppercase tracking-wide">
-                    Share Achievement
-                  </button>
-                  <button className="px-3 sm:px-4 py-1.5 sm:py-2 bg-background-dark border border-border-dark text-slate-300 text-xs font-bold rounded-lg hover:bg-surface-dark">
-                    Dismiss
-                  </button>
-                </div>
-              </div>
+          {notifications.length === 0 ? (
+            <div className="bg-card border border-white/5 rounded-3xl p-12 text-center">
+              <BellOff className="size-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400">All caught up! No new notifications.</p>
             </div>
-            <div className="absolute top-3 sm:top-4 right-3 sm:right-4 size-2 rounded-full bg-primary animate-pulse"></div>
-          </div>
-
-          {/* Hydration Reminder */}
-          <div className="bg-card border border-white/5 rounded-2xl p-4 sm:p-6 hover:border-secondary/50 transition-all duration-300">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="flex-shrink-0 size-10 sm:size-12 rounded-xl bg-secondary/10 border border-secondary/20 flex items-center justify-center text-secondary">
-                <span className="material-symbols-outlined text-xl sm:text-2xl">
-                  water_drop
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1 sm:gap-0">
-                  <h3 className="text-white font-bold text-sm sm:text-base">Hydration Reminder</h3>
-                  <span className="text-xs font-medium text-slate-500">15m ago</span>
+          ) : (
+            notifications.map((note) => (
+              <div 
+                key={note._id}
+                onClick={() => !note.isRead && markAsRead(note._id)}
+                className={`bg-card border ${note.isRead ? 'border-white/5 opacity-70' : 'border-primary/20 cursor-pointer'} rounded-2xl p-4 sm:p-6 hover:border-primary/40 transition-all duration-300 relative group`}
+              >
+                <div className="flex gap-3 sm:gap-4">
+                  <div className={`flex-shrink-0 size-10 sm:size-12 rounded-xl flex items-center justify-center border ${
+                    note.type === 'achievement' ? 'bg-primary/10 border-primary/20' : 'bg-slate-800 border-white/5'
+                  }`}>
+                    {getIcon(note.type)}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-1 sm:gap-0">
+                      <h3 className="text-white font-bold text-sm sm:text-base">{note.title}</h3>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <Clock className="size-3" /> {formatTime(note.createdAt)}
+                        </span>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); deleteNotification(note._id); }}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                      {note.message}
+                    </p>
+                    
+                    {note.type === 'achievement' && !note.isRead && (
+                      <div className="mt-4 flex gap-2">
+                         <button className="px-4 py-2 bg-primary text-black text-[10px] font-black rounded-lg uppercase tracking-wider">
+                            Claim Reward
+                         </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                  It's time for your mid-day water intake. You're currently <span className="text-secondary font-semibold">400ml behind</span> your daily target.
-                </p>
+                {!note.isRead && (
+                  <div className="absolute top-4 right-4 size-2 rounded-full bg-primary neon-glow animate-pulse"></div>
+                )}
               </div>
-            </div>
-          </div>
-
-          {/* Coach Comment */}
-          <div className="bg-card border border-white/5 rounded-2xl p-4 sm:p-6 hover:border-primary/50 transition-all duration-300 opacity-80">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="flex-shrink-0 size-10 sm:size-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400">
-                <span className="material-symbols-outlined text-xl sm:text-2xl">
-                  chat_bubble
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1 sm:gap-0">
-                  <h3 className="text-white font-bold text-sm sm:text-base">Coach Mike commented</h3>
-                  <span className="text-xs font-medium text-slate-500">2h ago</span>
-                </div>
-                <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                  "Excellent progress on your squat depth today. Keep focusing on that core stability!"
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Weekly Goal Met */}
-          <div className="bg-card border border-white/5 rounded-2xl p-4 sm:p-6 hover:border-primary/50 transition-all duration-300 opacity-80">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="flex-shrink-0 size-10 sm:size-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-xl sm:text-2xl">
-                  trending_up
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-1 gap-1 sm:gap-0">
-                  <h3 className="text-white font-bold text-sm sm:text-base">Weekly Goal Met</h3>
-                  <span className="text-xs font-medium text-slate-500">Yesterday</span>
-                </div>
-                <p className="text-slate-400 text-xs sm:text-sm leading-relaxed">
-                  Congratulations! You've reached your calorie burn goal 3 days ahead of schedule.
-                </p>
-              </div>
-            </div>
-          </div>
+            ))
+          )}
         </div>
 
-        {/* Sidebar Summary & Preferences */}
+        {/* Sidebar Summary */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-card border border-white/5 p-4 sm:p-6 rounded-2xl">
-            <h4 className="text-white font-bold text-base sm:text-lg mb-3 sm:mb-4">Summary</h4>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <div className="p-3 sm:p-4 bg-primary/5 border border-primary/10 rounded-xl">
-                <p className="text-xs text-primary/70 font-bold uppercase mb-1">Unread</p>
-                <p className="text-xl sm:text-2xl font-black text-white">12</p>
+          <div className="bg-card border border-white/5 p-6 rounded-2xl sticky top-24">
+            <h4 className="text-white font-bold text-lg mb-4">Inbox Status</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 bg-primary/5 border border-primary/10 rounded-xl">
+                <p className="text-[10px] text-primary font-black uppercase mb-1">Unread</p>
+                <p className="text-3xl font-black text-white">{unreadCount}</p>
               </div>
-              <div className="p-3 sm:p-4 bg-secondary/5 border border-secondary/10 rounded-xl">
-                <p className="text-xs text-secondary/70 font-bold uppercase mb-1">Actions</p>
-                <p className="text-xl sm:text-2xl font-black text-white">4</p>
+              <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
+                <p className="text-[10px] text-slate-500 font-black uppercase mb-1">Total</p>
+                <p className="text-3xl font-black text-white">{notifications.length}</p>
               </div>
+            </div>
+            
+            <div className="mt-6 pt-6 border-t border-white/5">
+                <div className="flex items-center justify-between text-xs mb-4">
+                    <span className="text-slate-500">Achievement Progress</span>
+                    <span className="text-primary font-bold">85%</span>
+                </div>
+                <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                    <div className="h-full bg-success neon-glow" style={{ width: '85%' }}></div>
+                </div>
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="mt-4 sm:mt-6 lg:mt-8 pt-4 sm:pt-6 lg:pt-8 border-t border-white/5 text-center text-slate-600 text-xs">
-        © 2024 STRIDE. All rights reserved.
+      <footer className="mt-8 pt-8 border-t border-white/5 text-center text-slate-600 text-[10px] uppercase font-bold tracking-[0.2em]">
+        © 2026 ACTIVE PULSE LOGISTICS.
       </footer>
     </div>
   );

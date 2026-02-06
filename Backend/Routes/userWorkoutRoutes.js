@@ -2,6 +2,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import UserWorkout from "../Models/userWorkoutSchema.js";
+import { sendAlert } from "./system/createNotification.js";
 
 const router = express.Router();
 
@@ -121,6 +122,21 @@ router.patch("/toggle/:id", async (req, res) => {
       },
       { new: true }
     );
+
+    // If workout was just completed, send a notification to the user
+    if (newStatus === "completed") {
+      try {
+        await sendAlert(
+          req.io,
+          updatedWorkout.userId,
+          "🎉 Workout Complete!",
+          `Great job — you completed your workout!`,
+          "achievement"
+        );
+      } catch (err) {
+        console.error("Failed to send workout notification", err);
+      }
+    }
 
     res.json(updatedWorkout);
   } catch (err) {

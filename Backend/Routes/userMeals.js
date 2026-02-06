@@ -3,6 +3,7 @@ import express from "express";
 import UserMeal from "../Models/userMealSchema.js";
 import Meal from "../Models/mealSchema.js";
 import { protect } from "../middleware/auth.js";
+import { sendAlert } from "./system/createNotification.js";
 
 const router = express.Router();
 
@@ -72,6 +73,22 @@ router.put("/:id", protect, async (req, res) => {
             return res.status(404).json({ error: "User meal not found" });
         }
         
+        // If user marked the meal as done, send a notification
+        if (isDone) {
+            try {
+                const mealName = userMeal?.mealId?.name || 'your meal';
+                await sendAlert(
+                    req.io,
+                    req.user.id,
+                    "🍽️ Meal Completed",
+                    `You've logged ${mealName}. Great job!`,
+                    "reminder"
+                );
+            } catch (err) {
+                console.error("Failed to send meal notification", err);
+            }
+        }
+
         res.json(userMeal);
     } catch (err) {
         res.status(500).json({ error: err.message });
