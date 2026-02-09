@@ -37,6 +37,9 @@ function AdminDashboard() {
   const [isConnected, setIsConnected] = useState(false);
   const socketRef = useRef(null);
 
+  // Configuration Constants
+  const API_BASE = "http://localhost:5000";
+
   function getScreenSize() {
     const width = window.innerWidth;
     if (width < 640) return 'xs';
@@ -58,16 +61,22 @@ function AdminDashboard() {
 
   // Initialize WebSocket connection
   useEffect(() => {
-    const socket = io(window.location.origin, {
+    const token = localStorage.getItem("token"); // Get token for authentication
+
+    const socket = io(API_BASE, {
+      auth: {
+        token: token // Sending token to satisfy server-side io.use middleware
+      },
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
+      transports: ["websocket"]
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('WebSocket connected');
+      console.log('WebSocket connected to port 5000');
       setIsConnected(true);
       setIsLoading(false);
     });
@@ -81,8 +90,8 @@ function AdminDashboard() {
       setIsConnected(false);
     });
 
-    socket.on('error', (error) => {
-      console.error('WebSocket error:', error);
+    socket.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error.message);
     });
 
     // Initial data fetch
@@ -94,14 +103,20 @@ function AdminDashboard() {
   }, []);
 
   const fetchInitialData = async () => {
+    const token = localStorage.getItem("token");
+    const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+    };
+
     try {
-      // Fetch database statistics - CORRECTED ENDPOINT
-      const statsRes = await fetch('/api/admin/dashboard/metrics/database');
+      // Fetch database statistics
+      const statsRes = await fetch(`${API_BASE}/api/admin/dashboard/metrics/database`, { headers });
       const statsData = await statsRes.json();
       setDatabaseStats(statsData);
 
-      // Fetch recent logs - CORRECTED ENDPOINT
-      const logsRes = await fetch('/api/admin/dashboard/logs/recent');
+      // Fetch recent logs
+      const logsRes = await fetch(`${API_BASE}/api/admin/dashboard/logs/recent`, { headers });
       const logsData = await logsRes.json();
       setRecentLogs(logsData);
     } catch (error) {
@@ -184,7 +199,7 @@ function AdminDashboard() {
     {
       name: 'WebSocket Server',
       status: isConnected ? 'Connected ✓' : 'Disconnected ✗',
-      endpoint: 'ws://' + window.location.host,
+      endpoint: 'ws://localhost:5000',
       color: isConnected ? 'primary' : 'danger',
       icon: 'swap_horiz'
     },
@@ -212,8 +227,6 @@ function AdminDashboard() {
     },
   ];
 
-  // Update the CPU metric in your healthMetrics array:
-
   const healthMetrics = [
     {
       label: 'Server Uptime',
@@ -231,7 +244,7 @@ function AdminDashboard() {
     },
     {
       label: 'CPU Usage',
-      value: `${systemMetrics.system.cpu.usage || 0}%`, // Updated to show usage percentage
+      value: `${systemMetrics.system.cpu.usage || 0}%`,
       icon: 'speed',
       trend: systemMetrics.system.cpu.usage > 80 ? 'high' :
         systemMetrics.system.cpu.usage > 50 ? 'medium' : 'low',
@@ -246,7 +259,6 @@ function AdminDashboard() {
     },
   ];
 
-  // Different layout based on screen size
   const getMetricsLayout = () => {
     if (screenSize === 'xs') {
       return (
@@ -338,7 +350,6 @@ function AdminDashboard() {
     );
   };
 
-  // Generate uptime data for the last 7 days
   const uptimeData = [
     { day: 'Mon', uptime: 100, status: 'operational' },
     { day: 'Tue', uptime: 99.9, status: 'operational' },
@@ -349,42 +360,31 @@ function AdminDashboard() {
     { day: 'Sun', uptime: 100, status: 'operational' },
   ];
 
-  // Get badge color for logs
   const getLogBadgeColor = (type) => {
     switch (type) {
-      case 'info':
-        return 'bg-primary/20 text-primary';
-      case 'success':
-        return 'bg-success/20 text-success';
+      case 'info': return 'bg-primary/20 text-primary';
+      case 'success': return 'bg-success/20 text-success';
       case 'warning':
       case 'error':
-      case 'danger':
-        return 'bg-danger/20 text-danger';
-      default:
-        return 'bg-primary/20 text-primary';
+      case 'danger': return 'bg-danger/20 text-danger';
+      default: return 'bg-primary/20 text-primary';
     }
   };
 
-  // Get dot color for logs
   const getLogDotColor = (type) => {
     switch (type) {
-      case 'info':
-        return 'bg-primary';
-      case 'success':
-        return 'bg-success';
+      case 'info': return 'bg-primary';
+      case 'success': return 'bg-success';
       case 'warning':
       case 'error':
-      case 'danger':
-        return 'bg-danger';
-      default:
-        return 'bg-primary';
+      case 'danger': return 'bg-danger';
+      default: return 'bg-primary';
     }
   };
 
   return (
     <div className="bg-dark-bg min-h-screen px-3 sm:px-4 md:px-6 py-3 sm:py-4">
       <main className="flex flex-col w-full max-w-[1920px] mx-auto">
-        {/* Title Section */}
         <div className="mb-4 sm:mb-6 md:mb-8">
           <div className="flex flex-col gap-1 mb-2 sm:mb-3">
             <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black text-white uppercase tracking-tight">
@@ -405,21 +405,15 @@ function AdminDashboard() {
             <div className="text-xs text-gray-500 sm:ml-auto">
               Updated: {systemMetrics.system.timestamp ?
                 new Date(systemMetrics.system.timestamp).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  second: '2-digit'
-                }) :
-                'Loading...'}
+                  hour: '2-digit', minute: '2-digit', second: '2-digit'
+                }) : 'Loading...'}
             </div>
           </div>
         </div>
 
-        {/* Health Metrics - Dynamic Layout */}
         {getMetricsLayout()}
 
-        {/* Main Content */}
         <div className="flex flex-col xl:flex-row gap-4 sm:gap-5 md:gap-6 mb-6 md:mb-8">
-          {/* System Components Status */}
           <div className="xl:flex-1 bg-card rounded-xl md:rounded-2xl border border-white/10 p-3 sm:p-4 md:p-5 lg:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-4 md:mb-6">
               <h3 className="font-bold text-base sm:text-lg md:text-xl text-white">System Components</h3>
@@ -430,43 +424,24 @@ function AdminDashboard() {
 
             <div className="space-y-2 sm:space-y-3">
               {systemComponents.map((component, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between p-2 sm:p-3 md:p-4 ${screenSize === 'xs' ? 'rounded-lg' : 'rounded-xl'
-                    } bg-white/5 hover:bg-white/10 transition-all`}
-                >
+                <div key={i} className={`flex items-center justify-between p-2 sm:p-3 md:p-4 ${screenSize === 'xs' ? 'rounded-lg' : 'rounded-xl'} bg-white/5 hover:bg-white/10 transition-all`}>
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${component.color === 'primary' ? 'bg-primary' :
-                          component.color === 'danger' ? 'bg-danger' :
-                            'bg-warning'
-                        }`}></div>
-                      {screenSize !== 'xs' && (
-                        <span className="material-symbols-outlined text-gray-400 text-sm md:text-base hidden sm:block">
-                          {component.icon}
-                        </span>
-                      )}
+                      <div className={`w-2 h-2 sm:w-3 sm:h-3 rounded-full flex-shrink-0 ${component.color === 'primary' ? 'bg-primary' : component.color === 'danger' ? 'bg-danger' : 'bg-warning'}`}></div>
+                      {screenSize !== 'xs' && <span className="material-symbols-outlined text-gray-400 text-sm md:text-base hidden sm:block">{component.icon}</span>}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs sm:text-sm md:text-base font-medium text-white truncate">
-                        {getComponentName(component.name)}
-                      </div>
-                      <div className="text-[10px] sm:text-xs text-gray-500 truncate">
-                        {component.endpoint}
-                      </div>
+                      <div className="text-xs sm:text-sm md:text-base font-medium text-white truncate">{getComponentName(component.name)}</div>
+                      <div className="text-[10px] sm:text-xs text-gray-500 truncate">{component.endpoint}</div>
                     </div>
                   </div>
-                  <div className={`text-xs sm:text-sm md:text-base font-medium ml-2 sm:ml-4 flex-shrink-0 ${component.color === 'primary' ? 'text-primary' :
-                      component.color === 'danger' ? 'text-danger' :
-                        'text-warning'
-                    }`}>
+                  <div className={`text-xs sm:text-sm md:text-base font-medium ml-2 sm:ml-4 flex-shrink-0 ${component.color === 'primary' ? 'text-primary' : component.color === 'danger' ? 'text-danger' : 'text-warning'}`}>
                     {getStatus(component.status)}
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Database Statistics */}
             <div className="mt-6 pt-4 border-t border-white/10">
               <h4 className="text-sm font-bold text-white mb-3">Database Statistics</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -494,48 +469,24 @@ function AdminDashboard() {
             </div>
           </div>
 
-          {/* System Uptime Chart & Performance */}
           <div className="xl:w-[400px] bg-card rounded-xl md:rounded-2xl border border-white/10 p-3 sm:p-4 md:p-5 lg:p-6">
             <h3 className="font-bold text-base sm:text-lg md:text-xl text-white mb-3 sm:mb-4 md:mb-6">
-              {screenSize === 'xs' ? 'Uptime 7D' :
-                screenSize === 'sm' ? 'System Uptime' :
-                  'System Uptime (7 Days)'}
+              {screenSize === 'xs' ? 'Uptime 7D' : screenSize === 'sm' ? 'System Uptime' : 'System Uptime (7 Days)'}
             </h3>
 
             <div className="space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-5 mb-4 sm:mb-6 md:mb-8">
               {uptimeData.map((day, i) => (
                 <div key={i} className="flex items-center gap-2 sm:gap-3">
-                  <div className={`${screenSize === 'xs' ? 'w-6' :
-                      screenSize === 'sm' ? 'w-8' :
-                        'w-10'
-                    } text-xs sm:text-sm text-gray-400`}>
+                  <div className={`${screenSize === 'xs' ? 'w-6' : screenSize === 'sm' ? 'w-8' : 'w-10'} text-xs sm:text-sm text-gray-400`}>
                     {screenSize === 'xs' ? day.day.charAt(0) : day.day}
                   </div>
                   <div className="flex-1">
-                    <div className={`${screenSize === 'xs' ? 'h-1.5 mb-0.5' :
-                        screenSize === 'sm' ? 'h-2 mb-1' :
-                          'h-2.5 mb-1'
-                      } bg-white/5 rounded-full overflow-hidden`}>
-                      <div
-                        className={`h-full rounded-full ${day.status === 'operational' ? 'bg-primary' :
-                            day.status === 'degraded' ? 'bg-warning' :
-                              'bg-danger'
-                          }`}
-                        style={{ width: `${day.uptime}%` }}
-                      ></div>
+                    <div className={`${screenSize === 'xs' ? 'h-1.5 mb-0.5' : screenSize === 'sm' ? 'h-2 mb-1' : 'h-2.5 mb-1'} bg-white/5 rounded-full overflow-hidden`}>
+                      <div className={`h-full rounded-full ${day.status === 'operational' ? 'bg-primary' : day.status === 'degraded' ? 'bg-warning' : 'bg-danger'}`} style={{ width: `${day.uptime}%` }}></div>
                     </div>
-                    {screenSize === 'xs' && (
-                      <div className="text-[10px] text-gray-500">
-                        {day.uptime}%
-                      </div>
-                    )}
                   </div>
                   {screenSize !== 'xs' && (
-                    <div className={`${screenSize === 'sm' ? 'text-xs' : 'text-sm'
-                      } font-medium w-10 sm:w-12 text-right ${day.status === 'operational' ? 'text-primary' :
-                        day.status === 'degraded' ? 'text-warning' :
-                          'text-danger'
-                      }`}>
+                    <div className={`${screenSize === 'sm' ? 'text-xs' : 'text-sm'} font-medium w-10 sm:w-12 text-right ${day.status === 'operational' ? 'text-primary' : day.status === 'degraded' ? 'text-warning' : 'text-danger'}`}>
                       {day.uptime}%
                     </div>
                   )}
@@ -548,14 +499,9 @@ function AdminDashboard() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div className="text-xs sm:text-sm text-gray-500">Current Uptime</div>
-                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-white">
-                      {systemMetrics.database.connected ? '99.97%' : '95.2%'}
-                    </div>
+                    <div className="text-lg sm:text-xl md:text-2xl font-bold text-white">{systemMetrics.database.connected ? '99.97%' : '95.2%'}</div>
                   </div>
-                  <div className={`text-xs sm:text-sm font-medium ${systemMetrics.database.connected ? 'text-primary' : 'text-warning'
-                    }`}>
-                    {systemMetrics.database.connected ? '+0.02% from last week' : 'Degraded performance'}
-                  </div>
+                  <div className={`text-xs sm:text-sm font-medium ${systemMetrics.database.connected ? 'text-primary' : 'text-warning'}`}>{systemMetrics.database.connected ? '+0.02% from last week' : 'Degraded performance'}</div>
                 </div>
               </div>
 
@@ -563,15 +509,11 @@ function AdminDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-xs sm:text-sm text-gray-500">Avg Response Time</div>
-                    <div className="text-lg sm:text-xl font-bold text-white">
-                      {systemMetrics.application.avgResponseTime}ms
-                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white">{systemMetrics.application.avgResponseTime}ms</div>
                   </div>
                   <div>
                     <div className="text-xs sm:text-sm text-gray-500">Requests</div>
-                    <div className="text-lg sm:text-xl font-bold text-white">
-                      {systemMetrics.application.requestCount}
-                    </div>
+                    <div className="text-lg sm:text-xl font-bold text-white">{systemMetrics.application.requestCount}</div>
                   </div>
                 </div>
               </div>
@@ -579,23 +521,16 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Recent Activity Logs */}
         <div className="bg-card rounded-xl md:rounded-2xl border border-white/10 p-3 sm:p-4 md:p-5 lg:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 sm:mb-4 md:mb-6">
-            <h3 className="font-bold text-base sm:text-lg md:text-xl text-white">
-              {screenSize === 'xs' ? 'Recent Logs' : 'Live System Activity'}
-            </h3>
-            <button
-              onClick={fetchInitialData}
-              className="text-xs sm:text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1"
-            >
+            <h3 className="font-bold text-base sm:text-lg md:text-xl text-white">{screenSize === 'xs' ? 'Recent Logs' : 'Live System Activity'}</h3>
+            <button onClick={fetchInitialData} className="text-xs sm:text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1">
               <span className="material-symbols-outlined text-sm">refresh</span>
               {screenSize === 'xs' ? 'Refresh' : 'Refresh Logs'}
             </button>
           </div>
 
           {screenSize === 'xs' ? (
-            // Mobile-optimized card view
             <div className="space-y-2">
               {recentLogs.map((log, i) => (
                 <div key={i} className="p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-all">
@@ -606,58 +541,12 @@ function AdminDashboard() {
                     </div>
                     <span className="text-[10px] text-gray-400">{log.time}</span>
                   </div>
-                  <div className="text-xs text-gray-300 mb-2">
-                    {log.message}
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full ${getLogBadgeColor(log.type)}`}>
-                      {log.type}
-                    </span>
-                  </div>
+                  <div className="text-xs text-gray-300 mb-2">{log.message}</div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${getLogBadgeColor(log.type)}`}>{log.type}</span>
                 </div>
               ))}
             </div>
-          ) : screenSize === 'sm' ? (
-            // Tablet-optimized table
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">Time</th>
-                    <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">Service</th>
-                    <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">Message</th>
-                    <th className="text-left py-2 px-3 text-xs text-gray-500 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentLogs.map((log, i) => (
-                    <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                      <td className="py-2 px-3 text-xs text-gray-400 whitespace-nowrap">
-                        {log.time}
-                      </td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center gap-1">
-                          <div className={`w-1.5 h-1.5 rounded-full ${getLogDotColor(log.type)}`}></div>
-                          <span className="text-xs font-medium text-white">
-                            {log.service}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-2 px-3 text-xs text-gray-300 truncate max-w-[120px]">
-                        {log.message}
-                      </td>
-                      <td className="py-2 px-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${getLogBadgeColor(log.type)}`}>
-                          {log.type}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
           ) : (
-            // Desktop table
             <div className="overflow-hidden rounded-xl border border-white/10">
               <table className="w-full">
                 <thead>
@@ -679,11 +568,7 @@ function AdminDashboard() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-sm text-gray-300">{log.message}</td>
-                      <td className="py-3 px-4">
-                        <span className={`text-sm px-2 py-1 rounded-full ${getLogBadgeColor(log.type)}`}>
-                          {log.type}
-                        </span>
-                      </td>
+                      <td className="py-3 px-4"><span className={`text-sm px-2 py-1 rounded-full ${getLogBadgeColor(log.type)}`}>{log.type}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -694,14 +579,9 @@ function AdminDashboard() {
           <div className="mt-4 sm:mt-6 flex items-center justify-between">
             <div className="text-xs sm:text-sm text-gray-500 flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-primary animate-pulse' : 'bg-danger'}`}></div>
-              {isConnected ? 'Live WebSocket connection active' : 'Connection lost - using HTTP polling'}
+              {isConnected ? 'Live WebSocket connection active' : 'Connection lost - attempting reconnect'}
             </div>
-            <button
-              onClick={() => socketRef.current?.emit('request-update')}
-              className="text-sm text-primary hover:text-primary/80 font-medium hidden sm:block"
-            >
-              Request Update →
-            </button>
+            <button onClick={() => socketRef.current?.emit('request-update')} className="text-sm text-primary hover:text-primary/80 font-medium hidden sm:block">Request Update →</button>
           </div>
         </div>
       </main>
