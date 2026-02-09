@@ -1,0 +1,268 @@
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 1: PROJECT OVERVIEW
+═══════════════════════════════════════════════════════════════════════════════
+
+STRIDE - A production-ready fitness tracking application
+
+✓ Complete full-stack system (React + Node.js + MongoDB)
+✓ Real-time features with WebSocket
+✓ User and Admin interfaces
+✓ Fully functional and deployed-ready
+
+Key Stats:
+• 15+ API endpoints
+• 7 MongoDB collections  
+• Real-time metrics broadcasting
+• 2+ user roles (User, Admin, Moderator)
+• Secure authentication (JWT + bcryptjs)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 2: CORE FEATURES
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─ USER FEATURES ─────────────────────────────────────────────┐
+│                                                             │
+│ 1. Authentication & Authorization                          │
+│    • JWT-based login system (7-day tokens)                 │
+│    • Role-based access control (User/Admin)                │
+│    • Secure password hashing (bcryptjs)                    │
+│    • Account ban system                                    │
+│                                                             │
+│ 2. Workout Management                                       │
+│    • 100+ exercises in library                             │
+│    • 8 muscle groups, 3 difficulty levels                  │
+│    • Create custom workout plans                           │
+│    • Track completion status                               │
+│                                                             │
+│ 3. Meal Planning & Nutrition                                │
+│    • Log meals daily (Breakfast, Lunch, Dinner, Snacks)    │
+│    • Track 4 macronutrients (Cal, Protein, Carbs, Fats)    │
+│    • Set personalized nutrition targets                    │
+│    • Real-time daily totals calculation                    │
+│                                                             │
+│ 4. Progress Analytics                                       │
+│    • Fitness metrics dashboard                             │
+│    • Weight tracking with trends                           │
+│    • Streak tracking & completion rates                    │
+│    • Performance visualizations                            │
+│                                                             │
+│ 5. Real-Time Notifications                                 │
+│    • WebSocket-powered live alerts                         │
+│    • Notification preferences                              │
+│    • Activity-triggered notifications                      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+┌─ ADMIN FEATURES ────────────────────────────────────────────┐
+│                                                             │
+│ • Real-time system monitoring dashboard                    │
+│ • User management (ban, edit, view activity)               │
+│ • Exercise library management                              │
+│ • Meal library management                                  │
+│ • System metrics (CPU, Memory, API requests, errors)       │
+│ • Activity logging & audit trail                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 3: TECHNOLOGY STACK
+═══════════════════════════════════════════════════════════════════════════════
+
+FRONTEND
+├─ React 19.2.3 (Modern UI framework)
+├─ Tailwind CSS (Responsive styling)
+├─ React Router (Client-side routing)
+├─ Socket.IO Client (Real-time updates)
+├─ Axios (HTTP requests)
+├─ Framer Motion (Animations)
+└─ Lucide Icons (30+ icons)
+
+BACKEND
+├─ Node.js + Express 5.2.1 (Web server)
+├─ MongoDB (NoSQL database)
+├─ Mongoose 9.1.4 (Database ORM)
+├─ Socket.IO 4.8.3 (WebSocket server)
+├─ JWT (Authentication)
+├─ bcryptjs (Password hashing)
+├─ Multer (File uploads)
+└─ CORS enabled
+
+ARCHITECTURE: React → Express API → MongoDB
+Real-time: WebSocket via Socket.IO
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 4: SYSTEM ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+                    ┌─────────────────────────┐
+                    │  React Frontend (3000)  │
+                    │  User & Admin Panels    │
+                    └────────────┬────────────┘
+                                 │
+                    HTTP (REST) + WebSocket
+                                 │
+        ┌────────────────────────┼──────────────────────┐
+        │                                               │
+    ┌───▼──────────────────────────────────┐            │
+    │  Express.js API (Port 5000)          │            │
+    ├──────────────────────────────────────┤            │
+    │ Routes:                              │            │
+    │  • /api/auth (Login/Signup)          │            │
+    │  • /api/user-workouts (Exercises)    │            │
+    │  • /api/user-meals (Meal logging)    │            │
+    │  • /api/progress (Analytics)         │            │
+    │  • /api/notifications (Real-time)    │            │
+    │  • /api/admin/* (Admin endpoints)    │            │
+    └───┬──────────────────────────────────┘     ┌──────▼───┐
+        │                                        │ Socket.IO│
+        │ Mongoose                               │ Server   │
+        │                                        └──────────┘
+    ┌───▼──────────────────────────────────┐
+    │  MongoDB (stridedb)                  │
+    ├──────────────────────────────────────┤
+    │ Collections:                          │
+    │  • users (profiles, auth)             │
+    │  • workouts (exercise library)        │
+    │  • meals (meal library)               │
+    │  • userworkouts (tracking)            │
+    │  • usermeals (logging)                │
+    │  • notifications (alerts)             │
+    │  • targets (nutrition goals)          │
+    └───────────────────────────────────────┘
+
+Data Flow: User clicks action → Frontend API call → Backend validates & 
+processes → Updates database → Returns response → Frontend updates UI → 
+WebSocket broadcasts to admin
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 5: SECURITY IMPLEMENTATION (2 MINS)
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ AUTHENTICATION
+  • JWT tokens (7-day expiration)
+  • Bearer token in Authorization header
+  • Verified on every protected route
+  • Socket.IO token verification on WebSocket handshake
+
+✓ PASSWORD SECURITY
+  • bcryptjs with 10 salt rounds
+  • ~100ms processing time (GPU resistant)
+  • Never stored in plain text
+  • Timing-attack resistant verification
+
+✓ AUTHORIZATION (RBAC)
+  • Role-based access control
+  • Routes protected by role middleware
+  • User restricted to /user/* paths
+  • Admin restricted to /admin/* paths
+  • 403 Forbidden on unauthorized access
+
+✓ DATA PROTECTION
+  • Input validation on all endpoints
+  • Mongoose schema validation
+  • CORS enabled for frontend origin
+  • File uploads: MIME type + size limit (2MB)
+  • Filename sanitization (prevents traversal)
+
+✓ ACCOUNT SECURITY
+  • Account ban system (admin controllable)
+  • Login tracking (count, timestamp, IP, user agent)
+  • Email unique constraint
+  • No sensitive data in JWT
+
+✓ AUDIT TRAIL
+  • All API requests logged with timestamp & duration
+  • Error tracking & categorization
+  • Service-level logging (AUTH, USER_API, ADMIN_API)
+  • Real-time activity broadcasting to admin
+
+Environment Variables:
+  • MONGO_URI (database connection)
+  • JWT_SECRET (token signing)
+  • PORT (server port)
+  • NODE_ENV (environment)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 6: KEY WORKFLOWS (2 MINS)
+═══════════════════════════════════════════════════════════════════════════════
+
+WORKFLOW 1: User Signup & Login
+  User fills form → POST /api/auth/signup
+  → Backend hashes password → Creates user in DB
+  → User logs in → POST /api/auth/login
+  → Backend verifies password → Generates JWT token
+  → Frontend stores token in localStorage
+  → User redirected to dashboard
+
+WORKFLOW 2: Add & Complete Workout
+  User selects exercise → POST /api/user-workouts/add
+  → Backend creates UserWorkout document
+  → Frontend shows exercise in plan
+  → User marks complete → PATCH /api/user-workouts/toggle/{id}
+  → Backend updates status & timestamp
+  → WebSocket broadcasts to admin dashboard
+
+WORKFLOW 3: Log Meals & Track Nutrition
+  User selects meal → POST /api/user-meals
+  → Backend creates UserMeal entry
+  → Frontend calculates daily totals (virtual fields)
+  → User sets targets → POST /api/targets
+  → Frontend displays progress bars vs goals
+  → Real-time update of macros
+
+WORKFLOW 4: View Analytics
+  User clicks Progress tab → GET /api/progress
+  → Backend calculates: total workouts, streak, calories, rate
+  → Retrieves weight history → Returns comprehensive stats
+  → Frontend visualizes with charts & cards
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SLIDE 7: DATABASE SCHEMA (1 MIN)
+═══════════════════════════════════════════════════════════════════════════════
+
+USER (Profile)
+├─ name, email, password (hashed), phone
+├─ age, weight, height, location, avatar
+├─ role (user/admin/moderator)
+├─ isBanned, lastLogin, loginCount
+├─ targets: {calories, protein, carbs, fats}
+└─ Timestamps: createdAt, updatedAt
+
+WORKOUT (Exercise Library)
+├─ exerciseId, title, tag (muscle group)
+├─ description, imageUrl
+├─ difficulty (Beginner/Intermediate/Advanced)
+├─ sets, reps
+└─ isActive (can be disabled)
+
+USER WORKOUT (Tracking)
+├─ userId, exerciseId
+├─ status (pending/completed)
+├─ completedAt timestamp
+└─ addedAt timestamp
+
+MEAL (Library)
+├─ userId (admin/creator)
+├─ date, type (breakfast/lunch/dinner/snacks)
+├─ foods: [{name, calories, protein, carbs, fats}]
+├─ totals (VIRTUAL - auto-calculated)
+└─ image
+
+USER MEAL (Logging)
+├─ userId, mealId
+├─ isDone status
+├─ date, type
+└─ Timestamps
+
+NOTIFICATION
+├─ userId, title, message
+├─ type (info/success/warning/error)
+├─ isRead status
+└─ Timestamps
